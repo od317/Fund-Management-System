@@ -1,0 +1,254 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrderType {
+  INCOME
+  EXPENSE
+}
+
+enum OrderStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  EXECUTED
+  COMPLETED
+}
+
+enum CategoryType {
+  INCOME
+  EXPENSE
+}
+
+enum NotificationType {
+  ORDER_CREATED
+  ORDER_SUBMITTED
+  ORDER_APPROVED
+  ORDER_REJECTED
+  ORDER_EXECUTED
+  SYSTEM
+  INFO
+}
+
+model Role {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique @db.VarChar(50)
+  description String?   @db.Text
+  permissions Json      @default("{}")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  
+  users       User[]
+  
+  @@map("roles")
+}
+
+model User {
+  id            Int       @id @default(autoincrement())
+  username      String    @unique @db.VarChar(50)
+  email         String    @unique @db.VarChar(255)
+  passwordHash  String    @map("password_hash") @db.VarChar(255)
+  roleId        Int       @map("role_id")
+  fullName      String    @map("full_name") @db.VarChar(100)
+  phone         String?   @db.VarChar(20)
+  isActive      Boolean   @default(true) @map("is_active")
+  lastLogin     DateTime? @map("last_login")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  
+  role          Role      @relation(fields: [roleId], references: [id])
+  
+  createdOrders    Order[]      @relation("CreatedBy")
+  approvedOrders   Order[]      @relation("ApprovedBy")
+  executedOrders   Order[]      @relation("ExecutedBy")
+  uploadedDocuments Document[]   @relation("UploadedBy")
+  verifiedDocuments Document[]  @relation("VerifiedBy")
+  auditLogs        AuditLog[]
+  notifications    Notification[]
+  
+  @@map("users")
+}
+
+model Category {
+  id          Int           @id @default(autoincrement())
+  name        String        @db.VarChar(100)
+  type        CategoryType
+  parentId    Int?          @map("parent_id")
+  description String?       @db.Text
+  isActive    Boolean       @default(true) @map("is_active")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  
+  parent      Category?     @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children    Category[]    @relation("CategoryHierarchy")
+  orderItems  OrderItem[]
+  
+  @@index([type])
+  @@index([parentId])
+  @@map("categories")
+}
+
+model Order {
+  id            Int         @id @default(autoincrement())
+  orderNumber   String      @unique @map("order_number") @db.VarChar(20)
+  type          OrderType
+  amount        Decimal     @db.Decimal(15, 2) @default(0)
+  description   String?     @db.Text
+  status        OrderStatus @default(DRAFT)
+  createdById   Int         @map("created_by")
+  approvedById  Int?        @map("approved_by")
+  approvedAt    DateTime?   @map("approved_at")
+  executedById  Int?        @map("executed_by")
+  executedAt    DateTime?   @map("executed_at")
+  orderDate     DateTime    @default(now()) @map("order_date")
+  reference     String?     @db.VarChar(100)
+  notes         String?     @db.Text
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+  
+  createdBy     User        @relation("CreatedBy", fields: [createdById], references: [id])
+  approvedBy    User?       @relation("ApprovedBy", fields: [approvedById], references: [id])
+  executedBy    User?       @relation("ExecutedBy", fields: [executedById], references: [id])
+  
+  items         OrderItem[]
+  documents     Document[]
+  dailyMovements DailyMovement[]
+  notifications Notification[]
+  
+  @@index([orderNumber])
+  @@index([status])
+  @@index([type])
+  @@index([createdById])
+  @@index([orderDate])
+  @@index([status, type])
+  @@map("orders")
+}
+
+model OrderItem {
+  id          Int      @id @default(autoincrement())
+  orderId     Int      @map("order_id")
+  categoryId  Int      @map("category_id")
+  description String?  @db.Text
+  quantity    Int      @default(1)
+  unitPrice   Decimal  @map("unit_price") @db.Decimal(15, 2)
+  amount      Decimal  @db.Decimal(15, 2)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  category    Category @relation(fields: [categoryId], references: [id])
+  
+  @@index([orderId])
+  @@map("order_items")
+}
+
+model Document {
+  id            Int       @id @default(autoincrement())
+  orderId       Int       @map("order_id")
+  fileName      String    @map("file_name") @db.VarChar(255)
+  filePath      String    @map("file_path") @db.VarChar(500)
+  fileSize      Int       @map("file_size")
+  fileType      String    @map("file_type") @db.VarChar(100)
+  uploadedById  Int       @map("uploaded_by")
+  description   String?   @db.Text
+  isVerified    Boolean   @default(false) @map("is_verified")
+  verifiedById  Int?      @map("verified_by")
+  verifiedAt    DateTime? @map("verified_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  
+  order         Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  uploadedBy    User      @relation("UploadedBy", fields: [uploadedById], references: [id])
+  verifiedBy    User?     @relation("VerifiedBy", fields: [verifiedById], references: [id])
+  
+  @@index([orderId])
+  @@index([uploadedById])
+  @@map("documents")
+}
+
+model DailyMovement {
+  id              Int       @id @default(autoincrement())
+  orderId         Int?      @map("order_id")
+  transactionDate DateTime  @map("transaction_date") @db.Date
+  amount          Decimal   @db.Decimal(15, 2)
+  type            OrderType
+  balanceBefore   Decimal   @map("balance_before") @db.Decimal(15, 2)
+  balanceAfter    Decimal   @map("balance_after") @db.Decimal(15, 2)
+  description     String?   @db.Text
+  reference       String?   @db.VarChar(100)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  
+  order           Order?    @relation(fields: [orderId], references: [id])
+  
+  @@index([transactionDate])
+  @@index([orderId])
+  @@index([type])
+  @@map("daily_movements")
+}
+
+model AuditLog {
+  id          Int       @id @default(autoincrement())
+  userId      Int?      @map("user_id")
+  action      String    @db.VarChar(100)
+  tableName   String?   @map("table_name") @db.VarChar(50)
+  recordId    Int?      @map("record_id")
+  oldData     Json?     @map("old_data")
+  newData     Json?     @map("new_data")
+  ipAddress   String?   @map("ip_address") @db.VarChar(45)
+  userAgent   String?   @map("user_agent") @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at")
+  
+  user        User?     @relation(fields: [userId], references: [id])
+  
+  @@index([userId])
+  @@index([action])
+  @@index([tableName])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model Notification {
+  id        Int              @id @default(autoincrement())
+  userId    Int              @map("user_id")
+  title     String           @db.VarChar(255)
+  message   String           @db.Text
+  type      NotificationType
+  isRead    Boolean          @default(false) @map("is_read")
+  orderId   Int?             @map("order_id")
+  link      String?          @db.VarChar(500)
+  readAt    DateTime?        @map("read_at")
+  createdAt DateTime         @default(now()) @map("created_at")
+  
+  user      User             @relation(fields: [userId], references: [id])
+  order     Order?           @relation(fields: [orderId], references: [id])
+  
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+model CompanySettings {
+  id          Int       @id @default(autoincrement())
+  companyName String    @map("company_name") @db.VarChar(255)
+  logo        String?   @db.VarChar(500)
+  address     String?   @db.Text
+  taxId       String?   @map("tax_id") @db.VarChar(50)
+  phone       String?   @db.VarChar(20)
+  email       String?   @db.VarChar(255)
+  website     String?   @db.VarChar(255)
+  currency    String    @default("USD") @db.VarChar(3)
+  timezone    String    @default("UTC") @db.VarChar(50)
+  dateFormat  String    @default("YYYY-MM-DD") @map("date_format") @db.VarChar(20)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  
+  @@map("company_settings")
+}
