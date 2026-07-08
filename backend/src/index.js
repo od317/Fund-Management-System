@@ -25,6 +25,7 @@ const userRoutes = require("./routes/users");
 const roleRoutes = require("./routes/roles");
 const categoryRoutes = require("./routes/categories");
 const orderRoutes = require("./routes/orders");
+const documentRoutes = require("./routes/documents");
 
 // Initialize Express
 const app = express();
@@ -82,6 +83,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/roles", roleRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/documents", documentRoutes);
 
 // Test protected route
 app.get("/api/test-protected", (req, res) => {
