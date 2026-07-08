@@ -42,9 +42,14 @@ const io = new Server(httpServer, {
   },
 });
 
+const socketUtils = require("./sockets")(io, prisma);
+const SocketEventHandler = require("./sockets/eventHandlers");
+const socketEventHandler = new SocketEventHandler(socketUtils);
+
 // Make io and prisma accessible to routes
 app.set("io", io);
 app.set("prisma", prisma);
+app.set("socketEventHandler", socketEventHandler);
 
 // Middleware
 app.use(

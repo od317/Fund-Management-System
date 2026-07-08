@@ -440,7 +440,21 @@ exports.submitOrder = async (req, res, next) => {
     const updatedOrder = await prisma.order.update({
       where: { id: parseInt(id) },
       data: { status: "PENDING" },
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+          },
+        },
+      },
     });
+
+    const socketEventHandler = req.app.get("socketEventHandler");
+    if (socketEventHandler) {
+      await socketEventHandler.onOrderCreated(updatedOrder);
+    }
 
     res.status(200).json({
       success: true,
@@ -486,7 +500,27 @@ exports.approveOrder = async (req, res, next) => {
         approvedById: req.user.id,
         approvedAt: new Date(),
       },
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+          },
+        },
+        approvedBy: {
+          select: {
+            id: true,
+            fullName: true,
+          },
+        },
+      },
     });
+
+    const socketEventHandler = req.app.get("socketEventHandler");
+    if (socketEventHandler) {
+      await socketEventHandler.onOrderApproved(updatedOrder);
+    }
 
     res.status(200).json({
       success: true,
@@ -532,7 +566,21 @@ exports.rejectOrder = async (req, res, next) => {
         status: "REJECTED",
         notes: reason ? `Rejected: ${reason}` : order.notes,
       },
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+          },
+        },
+      },
     });
+
+    const socketEventHandler = req.app.get("socketEventHandler");
+    if (socketEventHandler) {
+      await socketEventHandler.onOrderRejected(updatedOrder);
+    }
 
     res.status(200).json({
       success: true,
@@ -600,7 +648,34 @@ exports.executeOrder = async (req, res, next) => {
           executedById: req.user.id,
           executedAt: new Date(),
         },
+        include: {
+          createdBy: {
+            select: {
+              id: true,
+              username: true,
+              fullName: true,
+            },
+          },
+          executedBy: {
+            select: {
+              id: true,
+              fullName: true,
+            },
+          },
+        },
       });
+
+      // Emit socket event after transaction completes
+      setTimeout(async () => {
+        try {
+          const socketEventHandler = req.app.get("socketEventHandler");
+          if (socketEventHandler) {
+            await socketEventHandler.onOrderExecuted(executed);
+          }
+        } catch (error) {
+          console.error("Socket emit error:", error);
+        }
+      }, 100);
 
       // Create daily movement record
       await tx.dailyMovement.create({
