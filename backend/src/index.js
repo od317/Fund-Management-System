@@ -17,6 +17,7 @@ const prisma = new PrismaClient();
 // Import routes - only what we've built
 const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/users");
+const roleRoutes = require("./routes/roles");
 
 // Import middleware
 const { errorHandler } = require("./middleware/errorHandler");
@@ -56,6 +57,7 @@ app.use(auditLogger);
 // Routes - only what we've built
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/roles", roleRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {
