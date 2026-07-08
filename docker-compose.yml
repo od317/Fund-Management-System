@@ -1,0 +1,75 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: cash_db # ← Changed from blog_postgres
+    environment:
+      POSTGRES_DB: cashdb # ← Changed from blogdb
+      POSTGRES_USER: cash_user # ← Changed from admin
+      POSTGRES_PASSWORD: secure_password # ← Changed from secret
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - cash_network # ← Changed from blog_network
+
+  backend:
+    build: ./backend
+    container_name: cash_backend # ← Changed from blog_backend
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=development
+      - PORT=5000
+      - DB_USER=cash_user
+      - DB_PASSWORD=secure_password
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=cashdb
+      - JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+      - JWT_EXPIRE=7d
+      - CLIENT_URL=http://localhost:3000
+      - FRONTEND_URL=http://frontend:3000
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_started
+    networks:
+      - cash_network
+    command: npm run dev
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: development
+    container_name: cash_frontend # ← Changed from blog_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:5000/api
+      - NEXT_PUBLIC_WS_URL=http://localhost:5000
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+      - NEXT_TELEMETRY_DISABLED=1
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - backend
+    networks:
+      - cash_network
+    command: npm run dev
+
+volumes:
+  postgres_data:
+
+networks:
+  cash_network: # ← Changed from blog_network
+    driver: bridge
