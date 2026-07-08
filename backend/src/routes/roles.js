@@ -16,18 +16,23 @@ const {
   deleteRole,
 } = require("../controllers/roleController");
 
-// All routes require authentication
-router.use(authenticate);
-
-router
-  .route("/")
-  .get(authorize("manage_roles"), getRoles)
-  .post(authorize("manage_roles"), validate(createRoleSchema), createRole);
-
-router
-  .route("/:id")
-  .get(authorize("manage_roles"), getRole)
-  .put(authorize("manage_roles"), validate(updateRoleSchema), updateRole)
-  .delete(authorize("manage_roles"), deleteRole);
+// Apply authentication to EACH route individually
+router.get("/", authenticate, authorize("manage_roles"), getRoles);
+router.get("/:id", authenticate, authorize("manage_roles"), getRole);
+router.post(
+  "/",
+  authenticate,
+  authorize("manage_roles"),
+  validate(createRoleSchema),
+  createRole,
+);
+router.put(
+  "/:id",
+  authenticate,
+  authorize("manage_roles"),
+  validate(updateRoleSchema),
+  updateRole,
+);
+router.delete("/:id", authenticate, authorize("manage_roles"), deleteRole);
 
 module.exports = router;

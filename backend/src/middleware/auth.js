@@ -29,43 +29,39 @@ const authenticate = async (req, res, next) => {
       });
     }
 
-    try {
-      // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      // Get user from database
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.id },
-        include: {
-          role: true,
-        },
-      });
+    // Get user from database
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      include: {
+        role: true,
+      },
+    });
 
-      if (!user) {
-        return res.status(401).json({
-          success: false,
-          message: "User not found",
-        });
-      }
-
-      if (!user.isActive) {
-        return res.status(401).json({
-          success: false,
-          message: "Account is disabled. Please contact administrator.",
-        });
-      }
-
-      // Add user to request
-      req.user = user;
-      next();
-    } catch (error) {
+    if (!user) {
       return res.status(401).json({
         success: false,
-        message: "Not authorized to access this route",
+        message: "User not found",
       });
     }
+
+    if (!user.isActive) {
+      return res.status(401).json({
+        success: false,
+        message: "Account is disabled. Please contact administrator.",
+      });
+    }
+
+    // Add user to request
+    req.user = user;
+    next();
   } catch (error) {
-    next(error);
+    return res.status(401).json({
+      success: false,
+      message: "Not authorized to access this route",
+    });
   }
 };
 
@@ -105,38 +101,4 @@ const authorize = (...permissions) => {
   };
 };
 
-/**
- * Optional authentication - Attaches user to request if token exists
- */
-const optionalAuth = async (req, res, next) => {
-  try {
-    let token;
-
-    if (
-      req.headers.authorization &&
-      req.headers.authorization.startsWith("Bearer")
-    ) {
-      token = req.headers.authorization.split(" ")[1];
-    } else if (req.cookies && req.cookies.token) {
-      token = req.cookies.token;
-    }
-
-    if (token) {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.id },
-        include: { role: true },
-      });
-
-      if (user && user.isActive) {
-        req.user = user;
-      }
-    }
-
-    next();
-  } catch (error) {
-    next();
-  }
-};
-
-module.exports = { authenticate, authorize, optionalAuth };
+module.exports = { authenticate, authorize };

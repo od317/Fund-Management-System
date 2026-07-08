@@ -17,21 +17,29 @@ const {
   toggleUserStatus,
 } = require("../controllers/userController");
 
-// All routes require authentication
-router.use(authenticate);
-
-// User routes (Admin only for most actions)
-router
-  .route("/")
-  .get(authorize("manage_users"), getUsers)
-  .post(authorize("manage_users"), validate(createUserSchema), createUser);
-
-router
-  .route("/:id")
-  .get(authorize("manage_users"), getUser)
-  .put(authorize("manage_users"), validate(updateUserSchema), updateUser)
-  .delete(authorize("manage_users"), deleteUser);
-
-router.put("/:id/toggle-status", authorize("manage_users"), toggleUserStatus);
+// Apply authentication to EACH route individually
+router.get("/", authenticate, authorize("manage_users"), getUsers);
+router.get("/:id", authenticate, authorize("manage_users"), getUser);
+router.post(
+  "/",
+  authenticate,
+  authorize("manage_users"),
+  validate(createUserSchema),
+  createUser,
+);
+router.put(
+  "/:id",
+  authenticate,
+  authorize("manage_users"),
+  validate(updateUserSchema),
+  updateUser,
+);
+router.delete("/:id", authenticate, authorize("manage_users"), deleteUser);
+router.put(
+  "/:id/toggle-status",
+  authenticate,
+  authorize("manage_users"),
+  toggleUserStatus,
+);
 
 module.exports = router;
