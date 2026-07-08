@@ -29,6 +29,8 @@ const documentRoutes = require("./routes/documents");
 const reportRoutes = require("./routes/reports");
 const dashboardRoutes = require("./routes/dashboard");
 const notificationRoutes = require("./routes/notifications");
+const settingsRoutes = require("./routes/settings");
+
 // Initialize Express
 const app = express();
 const httpServer = createServer(app);
@@ -94,6 +96,7 @@ app.use("/api/documents", documentRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/settings", settingsRoutes);
 
 // Test protected route
 app.get("/api/test-protected", (req, res) => {
