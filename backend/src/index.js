@@ -14,14 +14,16 @@ dotenv.config();
 // Initialize Prisma
 const prisma = new PrismaClient();
 
-// Import routes - only what we've built
+// Import middleware
+const { authenticate } = require("./middleware/auth");
+const { errorHandler } = require("./middleware/errorHandler");
+const { auditLogger } = require("./middleware/auditLogger");
+
+// Import routes
 const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/users");
 const roleRoutes = require("./routes/roles");
-
-// Import middleware
-const { errorHandler } = require("./middleware/errorHandler");
-const { auditLogger } = require("./middleware/auditLogger");
+const categoryRoutes = require("./routes/categories");
 
 // Initialize Express
 const app = express();
@@ -54,18 +56,36 @@ app.use(cookieParser());
 // Audit logging middleware
 app.use(auditLogger);
 
-// Routes - only what we've built
+// ==========================================
+// PUBLIC ROUTES (No authentication required)
+// ==========================================
 app.use("/api/auth", authRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/roles", roleRoutes);
-
-// Health check
 app.get("/api/health", (req, res) => {
   res.json({
     success: true,
     status: "ok",
     message: "Cash Management API is running",
     timestamp: new Date().toISOString(),
+  });
+});
+
+// ==========================================
+// AUTHENTICATION WALL - Everything below requires valid token
+// ==========================================
+app.use("/api", authenticate);
+
+// ==========================================
+// PROTECTED ROUTES (Authentication required)
+// ==========================================
+app.use("/api/users", userRoutes);
+app.use("/api/roles", roleRoutes);
+app.use("/api/categories", categoryRoutes);
+
+// Test protected route
+app.get("/api/test-protected", (req, res) => {
+  res.json({
+    message: "You are authenticated!",
+    user: req.user.fullName,
   });
 });
 
@@ -91,7 +111,9 @@ httpServer.listen(PORT, () => {
   console.log(`📋 Environment: ${process.env.NODE_ENV || "development"}`);
   console.log(`💚 Health check: http://localhost:${PORT}/api/health`);
   console.log(`🔐 Auth routes: http://localhost:${PORT}/api/auth`);
-  console.log(`👥 User routes: http://localhost:${PORT}/api/users\n`);
+  console.log(
+    `🛡️  Protected routes: /api/users, /api/roles, /api/categories\n`,
+  );
 });
 
 // Graceful shutdown
