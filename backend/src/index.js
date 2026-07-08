@@ -28,7 +28,7 @@ const orderRoutes = require("./routes/orders");
 const documentRoutes = require("./routes/documents");
 const reportRoutes = require("./routes/reports");
 const dashboardRoutes = require("./routes/dashboard");
-
+const notificationRoutes = require("./routes/notifications");
 // Initialize Express
 const app = express();
 const httpServer = createServer(app);
@@ -93,6 +93,7 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/documents", documentRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 // Test protected route
 app.get("/api/test-protected", (req, res) => {
